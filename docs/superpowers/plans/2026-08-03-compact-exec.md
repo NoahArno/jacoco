@@ -18,7 +18,7 @@
 - 无输入 exec：打印 `[WARN] No execution data files provided.`，仍写出仅含 header + 会话信息的空输出。
 - 统计：`[INFO] Compacted: kept %d of %d classes (dropped %d).`
 - 警告：仅当 `total > 0 && kept == 0` 打印 `[WARN] No execution data matches the given class files. The class files may be from an old version.`
-- destfile 与任一输入 exec 规范路径相同 → `err` 打印 `[ERROR] The destfile must not be one of the input exec files: <destfile>` 并返回 `-1`。
+- destfile 与任一输入 exec 规范路径相同 → `err` 打印 `[ERROR] The destfile must not be one of the input exec files.` 并返回 `-1`（消息不含路径后缀：destfile 为用户传入路径，且测试断言以句点结尾；实现与测试以测试文本为准）。
 - classfiles 路径不存在 → 直接抛 `FileNotFoundException`（IOException），不做静默处理。
 - 命令描述：`"Compacts exec files by removing execution data for classes not matching the given class files."`
 - `AllCommands.get()` 中 `new Compact()` **追加在列表末尾**（`new Version(), new Compact()`），因为 `MainTest` 断言子串 `"dump|instrument|merge|report"`，插中间会破坏该子串。
@@ -640,8 +640,7 @@ import java.util.zip.ZipEntry;
 		for (final File file : execfiles) {
 			if (file.getCanonicalPath().equals(destfile.getCanonicalPath())) {
 				err.println(
-						"[ERROR] The destfile must not be one of the input exec files: "
-								+ destfile.getAbsolutePath());
+						"[ERROR] The destfile must not be one of the input exec files.");
 				return -1;
 			}
 		}
