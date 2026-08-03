@@ -99,7 +99,8 @@ void visitClassExecution(ExecutionData data) {
 | destfile 与任一输入 exec 路径相同 | 报错拒绝（流式写入会截断正在读取的输入文件） |
 | 多个输入 exec 含重复 classId | 重复条目原样写出；下游加载时自动合并，无正确性问题 |
 | 类名相同、classId 不同（历史版本） | 按 id 过滤自动丢弃旧版本，无需额外逻辑 |
-| classfiles 为空目录/路径不存在 | 目标集合为空 → 所有条目被丢弃 → 触发 kept=0 的 WARN |
+| classfiles 为空目录 | 目标集合为空 → 所有条目被丢弃 → 触发 kept=0 的 WARN |
+| classfiles 路径不存在 | 读文件时抛 `FileNotFoundException`（IOException），与 `Analyzer.analyzeAll` 行为一致，由命令直接抛出 |
 
 ## 6. 代码变更清单
 
