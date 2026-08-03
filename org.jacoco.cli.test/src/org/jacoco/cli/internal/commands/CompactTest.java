@@ -53,4 +53,74 @@ public class CompactTest extends CommandTestBase {
 				err);
 	}
 
+	@Test
+	public void should_keep_only_matching_classes() throws Exception {
+		// 用测试类路径上的真实 class 文件计算目标 classId
+		final File targetClass = new File(getClassPath(),
+				"org/jacoco/cli/internal/CommandTestBase.class");
+		final long targetId = CRC64.classId(
+				InputStreams.readFully(new FileInputStream(targetClass)));
+		// 输入 exec：一个匹配目标版本，一个不匹配（历史版本残留）
+		final File input = new File(tmp.getRoot(), "input.exec");
+		final FileOutputStream execout = new FileOutputStream(input);
+		final ExecutionDataWriter writer = new ExecutionDataWriter(execout);
+		writer.visitClassExecution(new ExecutionData(targetId,
+				"org/jacoco/cli/internal/Command", new boolean[] { true }));
+		writer.visitClassExecution(new ExecutionData(0x12345678L,
+				"org/jacoco/cli/internal/Stale", new boolean[] { true }));
+		execout.close();
+
+		final File dest = new File(tmp.getRoot(), "output.exec");
+		execute("compact", "--classfiles", getClassPath(),
+				input.getAbsolutePath(), "--destfile",
+				dest.getAbsolutePath());
+
+		assertOk();
+		assertContains("[INFO] Compacted: kept 1 of 2 classes (dropped 1).",
+				out);
+		assertEquals(Collections.singleton("org/jacoco/cli/internal/Command"),
+				loadExecFile(dest));
+	}
+
+	@Test
+	public void should_keep_session_info() throws Exception {
+		final File input = new File(tmp.getRoot(), "session.exec");
+		final FileOutputStream execout = new FileOutputStream(input);
+		final ExecutionDataWriter writer = new ExecutionDataWriter(execout);
+		writer.visitSessionInfo(new SessionInfo("s1", 1L, 2L));
+		execout.close();
+
+		final File dest = new File(tmp.getRoot(), "output.exec");
+		execute("compact", "--classfiles", getClassPath(),
+				input.getAbsolutePath(), "--destfile",
+				dest.getAbsolutePath());
+
+		assertOk();
+		final ExecFileLoader loader = new ExecFileLoader();
+		loader.load(dest);
+		assertEquals(1, loader.getSessionInfoStore().getInfos().size());
+		assertEquals("s1",
+				loader.getSessionInfoStore().getInfos().get(0).getId());
+	}
+
+	private File createExecFile(String name, long id) throws IOException {
+		final File file = new File(tmp.getRoot(), name + ".exec");
+		final FileOutputStream execout = new FileOutputStream(file);
+		final ExecutionDataWriter writer = new ExecutionDataWriter(execout);
+		writer.visitClassExecution(
+				new ExecutionData(id, name, new boolean[] { true }));
+		execout.close();
+		return file;
+	}
+
+	private Set<String> loadExecFile(File file) throws IOException {
+		final ExecFileLoader loader = new ExecFileLoader();
+		loader.load(file);
+		final Set<String> names = new HashSet<String>();
+		for (ExecutionData d : loader.getExecutionDataStore().getContents()) {
+			names.add(d.getName());
+		}
+		return names;
+	}
+
 }
