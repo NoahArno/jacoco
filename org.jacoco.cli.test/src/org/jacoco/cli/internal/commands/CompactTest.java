@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
 
 import org.jacoco.cli.internal.CommandTestBase;
 import org.jacoco.core.data.ExecutionData;
@@ -103,6 +105,98 @@ public class CompactTest extends CommandTestBase {
 				loader.getSessionInfoStore().getInfos().get(0).getId());
 	}
 
+	@Test
+	public void should_print_warning_when_no_exec_files_are_provided()
+			throws Exception {
+		final File dest = new File(tmp.getRoot(), "output.exec");
+		execute("compact", "--classfiles", getClassPath(), "--destfile",
+				dest.getAbsolutePath());
+
+		assertOk();
+		assertContains("[WARN] No execution data files provided.", out);
+		assertEquals(Collections.emptySet(), loadExecFile(dest));
+	}
+
+	@Test
+	public void should_warn_when_no_classes_match() throws Exception {
+		final File input = createExecFile("Stale", 0x12345678L);
+		final File classDir = new File(tmp.getRoot(), "emptyClasses");
+		classDir.mkdirs();
+		final File dest = new File(tmp.getRoot(), "output.exec");
+
+		execute("compact", "--classfiles", classDir.getAbsolutePath(),
+				input.getAbsolutePath(), "--destfile",
+				dest.getAbsolutePath());
+
+		assertOk();
+		assertContains(
+				"[WARN] No execution data matches the given class files.",
+				out);
+		assertEquals(Collections.emptySet(), loadExecFile(dest));
+	}
+
+	@Test
+	public void should_reject_destfile_equal_to_input() throws Exception {
+		final File input = createExecFile("Stale", 0x12345678L);
+
+		execute("compact", "--classfiles", getClassPath(),
+				input.getAbsolutePath(), "--destfile",
+				input.getAbsolutePath());
+
+		assertFailure();
+		assertContains(
+				"[ERROR] The destfile must not be one of the input exec files.",
+				err);
+	}
+
+	@Test
+	public void should_scan_nested_directories() throws Exception {
+		// 目标 class 放在嵌套目录 classes/a/b/c 下
+		final File targetClass = new File(getClassPath(),
+				"org/jacoco/cli/internal/CommandTestBase.class");
+		final File nestedDir = new File(tmp.getRoot(), "classes/a/b/c");
+		nestedDir.mkdirs();
+		copy(targetClass, new File(nestedDir, "Command.class"));
+		final long targetId = CRC64.classId(
+				InputStreams.readFully(new FileInputStream(targetClass)));
+		final File input = createExecFile("Command", targetId);
+		final File dest = new File(tmp.getRoot(), "output.exec");
+
+		execute("compact", "--classfiles",
+				new File(tmp.getRoot(), "classes").getAbsolutePath(),
+				input.getAbsolutePath(), "--destfile",
+				dest.getAbsolutePath());
+
+		assertOk();
+		assertEquals(Collections.singleton("Command"), loadExecFile(dest));
+	}
+
+	@Test
+	public void should_scan_jar_class_files() throws Exception {
+		final File targetClass = new File(getClassPath(),
+				"org/jacoco/cli/internal/CommandTestBase.class");
+		final byte[] classBytes = InputStreams
+				.readFully(new FileInputStream(targetClass));
+		final File jar = new File(tmp.getRoot(), "classes.jar");
+		final JarOutputStream jarOut = new JarOutputStream(
+				new FileOutputStream(jar));
+		jarOut.putNextEntry(
+				new ZipEntry("org/jacoco/cli/internal/Command.class"));
+		jarOut.write(classBytes);
+		jarOut.closeEntry();
+		jarOut.close();
+		final long targetId = CRC64.classId(classBytes);
+		final File input = createExecFile("Command", targetId);
+		final File dest = new File(tmp.getRoot(), "output.exec");
+
+		execute("compact", "--classfiles", jar.getAbsolutePath(),
+				input.getAbsolutePath(), "--destfile",
+				dest.getAbsolutePath());
+
+		assertOk();
+		assertEquals(Collections.singleton("Command"), loadExecFile(dest));
+	}
+
 	private File createExecFile(String name, long id) throws IOException {
 		final File file = new File(tmp.getRoot(), name + ".exec");
 		final FileOutputStream execout = new FileOutputStream(file);
@@ -121,6 +215,12 @@ public class CompactTest extends CommandTestBase {
 			names.add(d.getName());
 		}
 		return names;
+	}
+
+	private void copy(File source, File target) throws IOException {
+		final FileOutputStream out = new FileOutputStream(target);
+		out.write(InputStreams.readFully(new FileInputStream(source)));
+		out.close();
 	}
 
 }

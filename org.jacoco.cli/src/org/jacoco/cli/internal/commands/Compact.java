@@ -61,6 +61,14 @@ public class Compact extends Command {
 	@Override
 	public int execute(final PrintWriter out, final PrintWriter err)
 			throws IOException {
+		// 输出文件不能与输入文件相同：流式写入会截断正在读取的输入
+		for (final File file : execfiles) {
+			if (file.getCanonicalPath().equals(destfile.getCanonicalPath())) {
+				err.println(
+						"[ERROR] The destfile must not be one of the input exec files.");
+				return -1;
+			}
+		}
 		final File parent = destfile.getParentFile();
 		if (parent != null) {
 			parent.mkdirs();
@@ -170,7 +178,7 @@ public class Compact extends Command {
 	}
 
 	/**
-	 * 遍历 zip 内后缀为 .class 的条目，嵌套 zip 递归处理
+	 * 遍历 zip 内后缀为 .class 的条目
 	 */
 	private int collectZipClassIds(final InputStream input,
 			final Set<Long> ids) throws IOException {
