@@ -88,7 +88,7 @@ void visitClassExecution(ExecutionData data) {
 ### 4.3 第三阶段：统计输出
 
 - `[INFO] Compacted: kept X of Y classes (dropped Z).`
-- 若 `kept == 0`：`[WARN] No execution data matches the given class files. The class files may be from an old version.`（防误传旧版本 class 目录）
+- 若 `total > 0 && kept == 0`：`[WARN] No execution data matches the given class files. The class files may be from an old version.`（防误传旧版本 class 目录；无输入 exec 时 `total == 0`，不触发此警告）
 
 ## 5. 边界情况
 
