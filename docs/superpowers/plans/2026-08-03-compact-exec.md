@@ -25,6 +25,7 @@
 - 新文件必须带 EPL 版权头（与仓库所有文件一致）。
 - 测试运行命令：`./mvnw -pl org.jacoco.agent.rt,org.jacoco.cli.test -am package -Dtest=CompactTest -DfailIfNoTests=false`（本机 Maven 3.9.11 + JDK 25 下 `test` 阶段会因 agent runtime jar 未打包导致 surefire VM 崩溃，必须用 `package` 阶段 + 显式包含 `org.jacoco.agent.rt`）。
 - args4j 2.0.28 行为：多个必填参数缺失时只报告第一个（`Option "--classfiles" is required`，带引号）；help/usage 文本中的选项名不带引号。因此测试断言对第二个必填参数用不带引号的文本。
+- 测试中目标 class 文件引用必须用 `org/jacoco/cli/internal/CommandTestBase.class`（不可用 CLI 模块的 `Command.class`）：`CommandTestBase.getClassPath()` 返回测试模块的 `target/classes`，CLI 模块在 reactor 构建中是 jar 依赖，其类文件不在该目录下，引用会抛 FileNotFoundException（发生在 execute() 之前）。
 
 ---
 
@@ -213,7 +214,7 @@ git commit -m "feat(cli): 新增 compact 命令骨架并注册"
 	public void should_keep_only_matching_classes() throws Exception {
 		// 用测试类路径上的真实 class 文件计算目标 classId
 		final File targetClass = new File(getClassPath(),
-				"org/jacoco/cli/internal/Command.class");
+				"org/jacoco/cli/internal/CommandTestBase.class");
 		final long targetId = CRC64.classId(
 				InputStreams.readFully(new FileInputStream(targetClass)));
 		// 输入 exec：一个匹配目标版本，一个不匹配（历史版本残留）
@@ -563,7 +564,7 @@ git commit -m "feat(cli): compact 命令实现目标 classId 集合构建与流�
 	public void should_scan_nested_directories() throws Exception {
 		// 目标 class 放在嵌套目录 classes/a/b/c 下
 		final File targetClass = new File(getClassPath(),
-				"org/jacoco/cli/internal/Command.class");
+				"org/jacoco/cli/internal/CommandTestBase.class");
 		final File nestedDir = new File(tmp.getRoot(), "classes/a/b/c");
 		nestedDir.mkdirs();
 		copy(targetClass, new File(nestedDir, "Command.class"));
@@ -584,7 +585,7 @@ git commit -m "feat(cli): compact 命令实现目标 classId 集合构建与流�
 	@Test
 	public void should_scan_jar_class_files() throws Exception {
 		final File targetClass = new File(getClassPath(),
-				"org/jacoco/cli/internal/Command.class");
+				"org/jacoco/cli/internal/CommandTestBase.class");
 		final byte[] classBytes = InputStreams
 				.readFully(new FileInputStream(targetClass));
 		final File jar = new File(tmp.getRoot(), "classes.jar");
