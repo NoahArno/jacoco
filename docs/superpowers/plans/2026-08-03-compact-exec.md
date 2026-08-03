@@ -23,7 +23,8 @@
 - 命令描述：`"Compacts exec files by removing execution data for classes not matching the given class files."`
 - `AllCommands.get()` 中 `new Compact()` **追加在列表末尾**（`new Version(), new Compact()`），因为 `MainTest` 断言子串 `"dump|instrument|merge|report"`，插中间会破坏该子串。
 - 新文件必须带 EPL 版权头（与仓库所有文件一致）。
-- 测试运行命令：`./mvnw -pl org.jacoco.cli.test -am test -Dtest=CompactTest -DfailIfNoTests=false`
+- 测试运行命令：`./mvnw -pl org.jacoco.agent.rt,org.jacoco.cli.test -am package -Dtest=CompactTest -DfailIfNoTests=false`（本机 Maven 3.9.11 + JDK 25 下 `test` 阶段会因 agent runtime jar 未打包导致 surefire VM 崩溃，必须用 `package` 阶段 + 显式包含 `org.jacoco.agent.rt`）。
+- args4j 2.0.28 行为：多个必填参数缺失时只报告第一个（`Option "--classfiles" is required`，带引号）；help/usage 文本中的选项名不带引号。因此测试断言对第二个必填参数用不带引号的文本。
 
 ---
 
@@ -93,7 +94,7 @@ public class CompactTest extends CommandTestBase {
 
 		assertFailure();
 		assertContains("\"--classfiles\"", err);
-		assertContains("\"--destfile\"", err);
+		assertContains("--destfile", err);
 		assertContains("java -jar jacococli.jar compact [<execfiles> ...]",
 				err);
 	}
@@ -103,8 +104,8 @@ public class CompactTest extends CommandTestBase {
 
 - [ ] **Step 2: 运行测试验证失败**
 
-运行: `./mvnw -pl org.jacoco.cli.test -am test -Dtest=CompactTest -DfailIfNoTests=false`
-预期: BUILD FAILURE，编译错误 `cannot find symbol: class Compact`（CompactTest 引用了尚不存在的类）。
+运行: `./mvnw -pl org.jacoco.agent.rt,org.jacoco.cli.test -am package -Dtest=CompactTest -DfailIfNoTests=false`
+预期: BUILD FAILURE，测试失败（CompactTest 对 `Compact` 的引用仅存在于 javadoc `{@link}` 注释中，可正常编译；失败原因是命令未注册时 args4j 报 `"compact" is not a valid value for "<command>"`，断言不匹配）。
 
 - [ ] **Step 3: 实现命令骨架**
 
@@ -181,7 +182,7 @@ public class Compact extends Command {
 
 - [ ] **Step 4: 运行测试验证通过**
 
-运行: `./mvnw -pl org.jacoco.cli.test -am test -Dtest=CompactTest -DfailIfNoTests=false`
+运行: `./mvnw -pl org.jacoco.agent.rt,org.jacoco.cli.test -am package -Dtest=CompactTest -DfailIfNoTests=false`
 预期: BUILD SUCCESS，`Tests run: 1, Failures: 0`。
 
 - [ ] **Step 5: 提交**
@@ -287,7 +288,7 @@ git commit -m "feat(cli): 新增 compact 命令骨架并注册"
 
 - [ ] **Step 2: 运行测试验证失败**
 
-运行: `./mvnw -pl org.jacoco.cli.test -am test -Dtest=CompactTest -DfailIfNoTests=false`
+运行: `./mvnw -pl org.jacoco.agent.rt,org.jacoco.cli.test -am package -Dtest=CompactTest -DfailIfNoTests=false`
 预期: BUILD FAILURE 或测试失败（`execute` 目前返回 0 不写输出文件 → `loadExecFile(dest)` 抛 `FileNotFoundException`，且 `[INFO] Compacted:` 断言不匹配）。
 
 - [ ] **Step 3: 实现过滤逻辑**
@@ -487,7 +488,7 @@ import org.kohsuke.args4j.Option;
 
 - [ ] **Step 4: 运行测试验证通过**
 
-运行: `./mvnw -pl org.jacoco.cli.test -am test -Dtest=CompactTest -DfailIfNoTests=false`
+运行: `./mvnw -pl org.jacoco.agent.rt,org.jacoco.cli.test -am package -Dtest=CompactTest -DfailIfNoTests=false`
 预期: BUILD SUCCESS，`Tests run: 3, Failures: 0`。
 
 - [ ] **Step 5: 提交**
@@ -626,7 +627,7 @@ import java.util.zip.ZipEntry;
 
 - [ ] **Step 2: 运行测试，确认只有 destfile 防护用例失败**
 
-运行: `./mvnw -pl org.jacoco.cli.test -am test -Dtest=CompactTest -DfailIfNoTests=false`
+运行: `./mvnw -pl org.jacoco.agent.rt,org.jacoco.cli.test -am package -Dtest=CompactTest -DfailIfNoTests=false`
 预期: BUILD FAILURE，仅 `should_reject_destfile_equal_to_input` 失败（`execute` 目前会直接流式写入，截断输入并返回 0 → `assertFailure` 失败）；其余 4 个用例通过。
 
 - [ ] **Step 3: 实现 destfile 同路径防护**
@@ -647,7 +648,7 @@ import java.util.zip.ZipEntry;
 
 - [ ] **Step 4: 运行全部 CompactTest 验证通过**
 
-运行: `./mvnw -pl org.jacoco.cli.test -am test -Dtest=CompactTest -DfailIfNoTests=false`
+运行: `./mvnw -pl org.jacoco.agent.rt,org.jacoco.cli.test -am package -Dtest=CompactTest -DfailIfNoTests=false`
 预期: BUILD SUCCESS，`Tests run: 8, Failures: 0`（usage + 2 核心 + 5 边界）。
 
 - [ ] **Step 5: 全量回归（含 MainTest / XmlDocumentationTest）**
