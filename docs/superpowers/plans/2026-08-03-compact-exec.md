@@ -4,7 +4,7 @@
 
 **Goal:** 新增 JaCoCo CLI `compact` 命令：输入合并后的 exec 文件 + 目标版本 classfiles，流式过滤掉不属于目标版本 classId 的执行数据，输出精简后的 exec。
 
-**Architecture:** 新命令仿 `Merge` 命令结构，全部逻辑在 `Compact.java` 内。第一阶段遍历 classfiles（目录递归 + zip 内条目，支持嵌套 zip）用 `CRC64.classId(byte[])` 构建目标 classId 集合；第二阶段用 `ExecutionDataReader` + 自定义 `IExecutionDataVisitor` 逐块读取输入 exec，classId 命中的执行数据转发给 `ExecutionDataWriter` 边读边写，会话信息全部透传。不修改 core 模块与 exec 文件格式。
+**Architecture:** 新命令仿 `Merge` 命令结构，全部逻辑在 `Compact.java` 内。第一阶段遍历 classfiles（目录递归 + zip 内 `.class` 条目）用 `CRC64.classId(byte[])` 构建目标 classId 集合；第二阶段用 `ExecutionDataReader` + 自定义 `IExecutionDataVisitor` 逐块读取输入 exec，classId 命中的执行数据转发给 `ExecutionDataWriter` 边读边写，会话信息全部透传。不修改 core 模块与 exec 文件格式。
 
 **Tech Stack:** Java（目标 1.8+，代码风格沿用现有 jacoco fork：tab 缩进、中文注释、EPL 文件头）、Maven（mvnw）、JUnit 4 + args4j。
 
@@ -413,7 +413,7 @@ git commit -m "feat(cli): 新增 compact 命令骨架并注册"
 	}
 
 	/**
-	 * 遍历 zip 内后缀为 .class 的条目，嵌套 zip 递归处理
+	 * 遍历 zip 内后缀为 .class 的条目
 	 */
 	private int collectZipClassIds(final InputStream input,
 			final Set<Long> ids) throws IOException {
