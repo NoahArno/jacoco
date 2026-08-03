@@ -60,8 +60,7 @@ public class CompactTest extends CommandTestBase {
 		// 用测试类路径上的真实 class 文件计算目标 classId
 		final File targetClass = new File(getClassPath(),
 				"org/jacoco/cli/internal/CommandTestBase.class");
-		final long targetId = CRC64.classId(
-				InputStreams.readFully(new FileInputStream(targetClass)));
+		final long targetId = CRC64.classId(readAllBytes(targetClass));
 		// 输入 exec：一个匹配目标版本，一个不匹配（历史版本残留）
 		final File input = new File(tmp.getRoot(), "input.exec");
 		final FileOutputStream execout = new FileOutputStream(input);
@@ -157,8 +156,7 @@ public class CompactTest extends CommandTestBase {
 		final File nestedDir = new File(tmp.getRoot(), "classes/a/b/c");
 		nestedDir.mkdirs();
 		copy(targetClass, new File(nestedDir, "Command.class"));
-		final long targetId = CRC64.classId(
-				InputStreams.readFully(new FileInputStream(targetClass)));
+		final long targetId = CRC64.classId(readAllBytes(targetClass));
 		final File input = createExecFile("Command", targetId);
 		final File dest = new File(tmp.getRoot(), "output.exec");
 
@@ -175,8 +173,7 @@ public class CompactTest extends CommandTestBase {
 	public void should_scan_jar_class_files() throws Exception {
 		final File targetClass = new File(getClassPath(),
 				"org/jacoco/cli/internal/CommandTestBase.class");
-		final byte[] classBytes = InputStreams
-				.readFully(new FileInputStream(targetClass));
+		final byte[] classBytes = readAllBytes(targetClass);
 		final File jar = new File(tmp.getRoot(), "classes.jar");
 		final JarOutputStream jarOut = new JarOutputStream(
 				new FileOutputStream(jar));
@@ -217,9 +214,18 @@ public class CompactTest extends CommandTestBase {
 		return names;
 	}
 
+	private byte[] readAllBytes(File file) throws IOException {
+		final FileInputStream in = new FileInputStream(file);
+		try {
+			return InputStreams.readFully(in);
+		} finally {
+			in.close();
+		}
+	}
+
 	private void copy(File source, File target) throws IOException {
 		final FileOutputStream out = new FileOutputStream(target);
-		out.write(InputStreams.readFully(new FileInputStream(source)));
+		out.write(readAllBytes(source));
 		out.close();
 	}
 
